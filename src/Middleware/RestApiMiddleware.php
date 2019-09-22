@@ -3,15 +3,13 @@
 namespace RestApi\Middleware;
 
 use Cake\Core\App;
-use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
 use Cake\Event\EventManager;
 use Cake\Utility\Inflector;
-use Api\Event\ApiRequestHandler;
+use RestApi\Event\ApiRequestHandler;
 
 class RestApiMiddleware extends ErrorHandlerMiddleware
 {
-
     /**
      * Override ErrorHandlerMiddleware and add custom exception renderer
      *
@@ -22,12 +20,7 @@ class RestApiMiddleware extends ErrorHandlerMiddleware
      */
     public function __invoke($request, $response, $next)
     {
-
         try {
-            $prefix = $this->getPrefix($request);
-            if ($prefix == Configure::read('ApiRequest.prefix')) {
-                Configure::write('App.namespace', Configure::read('ApiRequest.namespace'));
-            }
             $params = (array)$request->getAttribute('params', []);
             if (isset($params['controller'])) {
                 $controllerName = $params['controller'];
@@ -46,7 +39,7 @@ class RestApiMiddleware extends ErrorHandlerMiddleware
                 }
                 $className = App::className($controllerName, $type, 'Controller');
                 $controller = ($className) ? new $className() : null;
-                if ($controller && is_subclass_of($controller, 'RestApi\Controller\RestApiController')) {
+                if ($controller && is_subclass_of($controller, 'RestApi\Controller\ApiController')) {
                     if (isset($this->renderer)) {
                         $this->renderer = 'RestApi\Error\ApiExceptionRenderer';
                     } else {
@@ -56,15 +49,9 @@ class RestApiMiddleware extends ErrorHandlerMiddleware
                 }
                 unset($controller);
             }
-
             return $next($request, $response);
         } catch (\Exception $e) {
             return $this->handleException($e, $request, $response);
         }
-    }
-
-    private function getPrefix($request)
-    {
-        return explode('/', $request->url)[0];
     }
 }
