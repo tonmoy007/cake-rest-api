@@ -5,6 +5,7 @@ namespace RestApi\Event;
 use Cake\Core\Configure;
 use Cake\Event\Event;
 use Cake\Event\EventListenerInterface;
+use Cake\Http\Response;
 use RestApi\Utility\ApiRequestLogger;
 
 /**
@@ -14,7 +15,6 @@ use RestApi\Utility\ApiRequestLogger;
  */
 class ApiRequestHandler implements EventListenerInterface
 {
-
     /**
      * Event bindings.
      *
@@ -42,24 +42,23 @@ class ApiRequestHandler implements EventListenerInterface
      * Handles incoming request and its data.
      *
      * @param Event $event The beforeDispatch event
-     * @return
      */
     public function beforeDispatch(Event $event)
     {
-        $this->buildResponse($event);
+        /**
+         * @var $response Response
+         */
+        $response = $this->buildResponse($event);
         Configure::write('requestLogged', false);
         $request = $event->getData()['request'];
         if ('OPTIONS' === $request->getMethod()) {
             $event->stopPropagation();
-            $response = $event->getData()['response'];
             $response->getStatusCode(200);
-
             return $response;
         }
-
-        if (empty($request->getData())) {
-//            $request->data = $request->input('json_decode', true);
-        }
+//        if (empty($request->getData())) {
+////            $request->data = $request->input('json_decode', true);
+//        }
     }
 
     /**
@@ -83,7 +82,6 @@ class ApiRequestHandler implements EventListenerInterface
         if ('OPTIONS' === $request->getMethod()) {
             return;
         }
-
         if (!Configure::read('requestLogged') && Configure::read('ApiRequest.log')) {
             if (Configure::read('ApiRequest.logOnlyErrors')) {
                 $responseCode = $event->getSubject()->httpStatusCode;
@@ -104,27 +102,26 @@ class ApiRequestHandler implements EventListenerInterface
      *
      * @param Event $event The event object either beforeDispatch or afterDispatch
      *
-     * @return bool true
+     * @return Response
      */
     private function buildResponse(Event $event)
     {
         $request = $event->getData()['request'];
         $response = $event->getData()['response'];
-
         if ('xml' === Configure::read('ApiRequest.responseType')) {
             $response->type('xml');
         } else {
             $response->type('json');
         }
-
-        $response->cors($request)
-            ->allowOrigin(Configure::read('ApiRequest.cors.origin'))
-            ->allowMethods(Configure::read('ApiRequest.cors.allowedMethods'))
+        /**
+         * @var $response Response
+         */
+        $response = $response->cors($request, Configure::read('ApiRequest.cors.origin'))
+            ->allowMethods(array_unique(Configure::read('ApiRequest.cors.allowedMethods')))
             ->allowHeaders(Configure::read('ApiRequest.cors.allowedHeaders'))
             ->allowCredentials()
             ->maxAge(Configure::read('ApiRequest.cors.maxAge'))
             ->build();
-
-        return true;
+        return $response;
     }
 }
